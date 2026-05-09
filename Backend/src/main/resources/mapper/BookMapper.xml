@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.library.mapper.BookMapper">
+
+    <!--
+        MyBatis 二级缓存配置
+        - flushInterval="300000"：5 分钟刷新（图书数据变化频率低）
+        - size="256"：最多缓存 256 个结果对象
+    -->
+    <cache eviction="LRU" flushInterval="300000" size="256" readOnly="false"/>
+
+    <!-- 图书基础 ResultMap -->
+    <resultMap id="BaseResultMap" type="com.library.entity.Book">
+        <id column="id" property="id"/>
+        <result column="isbn" property="isbn"/>
+        <result column="title" property="title"/>
+        <result column="author" property="author"/>
+        <result column="publisher" property="publisher"/>
+        <result column="category" property="category"/>
+        <result column="total_stock" property="totalStock"/>
+        <result column="available_stock" property="availableStock"/>
+        <result column="description" property="description"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 查询字段片段，过滤 SELECT * -->
+    <sql id="BaseColumns">
+        id, isbn, title, author, publisher, category,
+        total_stock, available_stock, description, status, created_at, updated_at
+    </sql>
+
+    <!-- 根据主键查询（仅查询上架图书，status=1） -->
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM books
+        WHERE id = #{id} AND status = 1
+    </select>
+
+    <!--
+        图书列表查询，支持关键字和分类过滤
+        CONCAT('%', #{keyword}, '%') 实现 LIKE 模糊查询（兼容 H2 和 MySQL）
+    -->
+    <select id="findAll" resultMap="BaseResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM books
+        <where>
+            AND status = 1
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%')
+                OR author LIKE CONCAT('%', #{keyword}, '%')
+                OR isbn LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 新增图书 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO books (isbn, title, author, publisher, category,
+                           total_stock, available_stock, description, status, created_at, updated_at)
+        VALUES (#{isbn}, #{title}, #{author}, #{publisher}, #{category},
+                #{totalStock}, #{availableStock}, #{description}, 1, NOW(), NOW())
+    </insert>
+
+    <!--
+        动态更新图书信息
+        注意：available_stock 通过专用方法 decreaseAvailableStock/increaseAvailableStock 管理
+    -->
+    <update id="update">
+        UPDATE books
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="author != null">author = #{author},</if>
+            <if test="publisher != null">publisher = #{publisher},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="totalStock != null">total_stock = #{totalStock},</if>
+            <if test="description != null">description = #{description},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!--
+        逻辑删除图书（下架），保留历史借阅记录的完整性
+        物理删除会破坏 borrow_records 的外键约束
+    -->
+    <update id="deleteById">
+        UPDATE books SET status = 0, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <!--
+        借书时减少可借数量。
+        WHERE available_stock > 0 作为并发保护：若多个请求同时借阅同一本书，
+        只有一个能成功（其余返回影响行数 0），实现乐观锁效果
+    -->
+    <update id="decreaseAvailableStock">
+        UPDATE books
+        SET available_stock = available_stock - 1, updated_at = NOW()
+        WHERE id = #{id} AND available_stock > 0
+    </update>
+
+    <!-- 还书时增加可借数量，available_stock 不超过 total_stock -->
+    <update id="increaseAvailableStock">
+        UPDATE books
+        SET available_stock = available_stock + 1, updated_at = NOW()
+        WHERE id = #{id} AND available_stock &lt; total_stock
+    </update>
+
+    <!-- 统计上架图书总数 -->
+    <select id="count" resultType="int">
+        SELECT COUNT(1) FROM books WHERE status = 1
+    </select>
+
+    <!-- 根据 ISBN 查询（新增时防重复） -->
+    <select id="findByIsbn" resultMap="BaseResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM books
+        WHERE isbn = #{isbn} AND status = 1
+        LIMIT 1
+    </select>
+
+</mapper>

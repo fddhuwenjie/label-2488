@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.library.mapper.BorrowMapper">
+
+    <!--
+        二级缓存配置（较短刷新间隔，保证借还数据的实时性）
+        - readOnly="false"：需要支持缓存对象修改（还书时修改状态）
+    -->
+    <cache eviction="LRU" flushInterval="30000" size="256" readOnly="false"/>
+
+    <!--
+        借阅记录完整 ResultMap（含 MyBatis 延迟加载配置）
+
+        核心特性：延迟加载（Lazy Loading）
+        ==========================================
+        <association> 的 fetchType="lazy" 指定该关联对象使用延迟加载策略：
+        - 查询 borrow_records 时，SQL 只返回 user_id 和 book_id
+        - 当业务代码调用 record.getUser() 时，才执行 UserMapper.findById
+        - 当业务代码调用 record.getBook() 时，才执行 BookMapper.findById
+        - 若不访问这两个属性，则额外的 SQL 不会被执行
+
+        这与 "立即加载（Eager Loading）" 相对，避免了 N+1 查询问题，
+        在不需要关联数据的场景下显著减少数据库访问次数。
+
+        注意：在 @Transactional 事务范围内调用 getUser()/getBook() 才能触发加载，
+        本项目在 BorrowService.getBorrowById() 方法中显式触发延迟加载。
+    -->
+    <resultMap id="BorrowResultMap" type="com.library.entity.BorrowRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="book_id" property="bookId"/>
+        <result column="borrow_date" property="borrowDate"/>
+        <result column="due_date" property="dueDate"/>
+        <result column="return_date" property="returnDate"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+
+        <!--
+            关联用户信息（延迟加载）
+            select：指定触发延迟加载时执行的 SQL（UserMapper.findById）
+            column：将 borrow_records.user_id 作为参数传入 findById
+            fetchType="lazy"：明确指定此关联使用延迟加载（覆盖全局配置）
+        -->
+        <association property="user"
+                     column="user_id"
+                     select="com.library.mapper.UserMapper.findById"
+                     fetchType="lazy"/>
+
+        <!--
+            关联图书信息（延迟加载）
+            fetchType="lazy"：仅在访问 book 属性时才触发 BookMapper.findById 查询
+        -->
+        <association property="book"
+                     column="book_id"
+                     select="com.library.mapper.BookMapper.findById"
+                     fetchType="lazy"/>
+    </resultMap>
+
+    <!--
+        简单 ResultMap（不含关联，用于列表查询）
+        列表场景不需要每条记录的详细用户/图书信息，避免触发大量关联查询
+    -->
+    <resultMap id="SimpleResultMap" type="com.library.entity.BorrowRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="book_id" property="bookId"/>
+        <result column="borrow_date" property="borrowDate"/>
+        <result column="due_date" property="dueDate"/>
+        <result column="return_date" property="returnDate"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 基础查询字段 -->
+    <sql id="BaseColumns">
+        id, user_id, book_id, borrow_date, due_date, return_date, status, created_at
+    </sql>
+
+    <!--
+        根据 ID 查询借阅详情，使用 BorrowResultMap（含延迟加载）
+        调用此方法后，访问 record.getUser() 或 record.getBook() 将触发延迟加载
+    -->
+    <select id="findById" resultMap="BorrowResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM borrow_records
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        借阅记录列表查询，使用 SimpleResultMap（不触发延迟加载）
+        - userId 为 null 时查询所有用户（管理员权限）
+        - status 为 null 时查询所有状态
+    -->
+    <select id="findAll" resultMap="SimpleResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM borrow_records
+        <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询用户当前借阅中的记录数（用于上限控制） -->
+    <select id="countActiveByUserId" resultType="int">
+        SELECT COUNT(1)
+        FROM borrow_records
+        WHERE user_id = #{userId} AND status = 'BORROWED'
+    </select>
+
+    <!-- 新增借阅记录 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO borrow_records (user_id, book_id, borrow_date, due_date, status, created_at)
+        VALUES (#{userId}, #{bookId}, #{borrowDate}, #{dueDate}, 'BORROWED', NOW())
+    </insert>
+
+    <!-- 动态更新借阅记录（主要用于还书：更新 return_date 和 status） -->
+    <update id="update">
+        UPDATE borrow_records
+        <set>
+            <if test="returnDate != null">return_date = #{returnDate},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!--
+        查询所有逾期未还记录
+        &lt; 是 XML 转义的 < 符号，用于比较 due_date < 当前日期
+    -->
+    <select id="findOverdue" resultMap="SimpleResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM borrow_records
+        WHERE status = 'BORROWED' AND due_date &lt; CURRENT_DATE
+    </select>
+
+</mapper>

@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: campus-library
+
+  # ===== 数据源配置（默认使用 H2 内存数据库，本地开发无需安装 MySQL）=====
+  datasource:
+    url: jdbc:h2:mem:librarydb;DB_CLOSE_DELAY=-1;MODE=MySQL;NON_KEYWORDS=VALUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # H2 Web 控制台（本地调试，访问 http://localhost:8080/h2-console）
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+  # SQL 初始化：启动时自动执行 schema.sql 建表
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+  # Jackson 序列化配置
+  jackson:
+    # Java 8+ 日期时间类型序列化为 ISO 字符串（而非数字数组）
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Shanghai
+
+# ===== 服务器配置 =====
+server:
+  port: 8080
+
+# ===== MyBatis 配置 =====
+mybatis:
+  # Mapper XML 文件扫描路径
+  mapper-locations: classpath:mapper/*.xml
+  # 实体类别名包路径（XML 中可直接使用类名，无需全限定名）
+  type-aliases-package: com.library.entity
+  configuration:
+    # 开启全局延迟加载（各 Mapper 可通过 fetchType 覆盖）
+    lazy-loading-enabled: true
+    # 关闭积极加载：只有访问具体属性才触发关联查询
+    aggressive-lazy-loading: false
+    # 全局二级缓存开关（各 Mapper 还需配置 <cache> 标签）
+    cache-enabled: true
+    # 下划线命名自动转驼峰（created_at → createdAt）
+    map-underscore-to-camel-case: true
+    # 开发环境输出 SQL 到控制台（生产环境移除或改为 Slf4jImpl）
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# ===== PageHelper 分页插件配置 =====
+pagehelper:
+  # 数据库方言（自动追加 LIMIT 子句）
+  helper-dialect: mysql
+  # reasonable=true：页码超出范围时自动修正（<1 归为第1页，>总页数 归为最后一页）
+  reasonable: true
+  # 支持 Mapper 方法参数中传递分页参数
+  support-methods-arguments: true
+
+# ===== JWT 配置 =====
+jwt:
+  # 签名密钥通过环境变量 JWT_SECRET 注入，避免明文提交到仓库
+  # 本地开发使用括号内的默认值；生产/Docker 环境必须设置 JWT_SECRET 环境变量
+  # 生成强密钥示例：openssl rand -base64 32
+  secret: ${JWT_SECRET:Y2FtcHVzTGlicmFyeVNlY3JldEtleUZvckpXVEF1dGhlbnRpY2F0aW9uMjAyNQ==}
+  # 令牌有效期（毫秒），可通过 JWT_EXPIRATION 覆盖；默认 24 小时
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# ===== CORS 跨域配置 =====
+cors:
+  # 本地开发默认允许常见前端开发端口；生产环境通过 CORS_ALLOWED_ORIGINS 环境变量
+  # 覆盖为实际部署的前端域名（多个来源以英文逗号分隔）
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:8080}
+
+# ===== Actuator 监控端点（Docker 健康检查使用）=====
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+# ===== 日志级别 =====
+logging:
+  level:
+    com.library: DEBUG
+    org.springframework.security: INFO
+    org.mybatis: INFO

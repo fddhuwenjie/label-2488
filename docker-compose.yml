@@ -1,0 +1,102 @@
+version: '3.8'
+
+# ==============================================================
+# 校园图书借阅管理系统 - Docker Compose 编排配置
+#
+# 快速启动：
+#   docker-compose up --build -d
+#
+# 查看日志：
+#   docker-compose logs -f backend
+#
+# 停止并清除容器（保留数据卷）：
+#   docker-compose down
+#
+# 完全清除（含数据卷）：
+#   docker-compose down -v
+# ==============================================================
+
+services:
+
+  # ============================================================
+  # MySQL 数据库服务
+  # ============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: library-mysql
+    environment:
+      # MySQL root 密码
+      MYSQL_ROOT_PASSWORD: rootpassword
+      # 自动创建业务数据库
+      MYSQL_DATABASE: librarydb
+      # 业务账号（后端服务使用）
+      MYSQL_USER: library
+      MYSQL_PASSWORD: library123
+      # 容器时区
+      TZ: Asia/Shanghai
+    volumes:
+      # MySQL 数据文件持久化到 Docker 卷，容器重建后数据不丢失
+      - mysql_data:/var/lib/mysql
+      # 首次启动时自动执行建表 SQL（已存在数据时不再执行）
+      - ./Backend/src/main/resources/db/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      # 映射到宿主机 3306 端口，方便使用 MySQL Workbench 等工具直连调试
+      - "3488:3306"
+    healthcheck:
+      # 定期检查 MySQL 是否就绪，后端服务需等待此检查通过后才启动
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "library", "-plibrary123"]
+      interval: 10s      # 每 10 秒检查一次
+      timeout: 5s        # 检查超时时间
+      retries: 10        # 最多重试 10 次（MySQL 启动较慢，需要足够的等待时间）
+      start_period: 30s  # 容器启动后等待 30 秒再开始健康检查
+    restart: unless-stopped
+
+  # ============================================================
+  # Spring Boot 后端服务
+  # ============================================================
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: library-backend
+    ports:
+      # 映射到宿主机 8080 端口
+      - "8080:8080"
+    environment:
+      # 激活 Docker 配置文件（使用 MySQL 数据源）
+      SPRING_PROFILES_ACTIVE: docker
+      # 数据源连接信息（主机名 mysql 来自 docker-compose 服务名称）
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/librarydb?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: library
+      SPRING_DATASOURCE_PASSWORD: library123
+      # JWT 签名密钥（建议通过 .env 文件或 CI/CD Secret 覆盖）
+      # 生成强密钥示例：openssl rand -base64 32
+      # 默认值仅供本地开发/演示使用，生产环境务必替换
+      JWT_SECRET: ${JWT_SECRET:-Y2FtcHVzTGlicmFyeVNlY3JldEtleUZvckpXVEF1dGhlbnRpY2F0aW9uMjAyNQ==}
+      # JWT 令牌有效期（毫秒），默认 8 小时；可按需覆盖
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-28800000}
+      # CORS 允许的前端来源（逗号分隔）
+      # 默认允许常见本地开发端口；生产环境通过 .env 设置为实际前端域名
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:8080}
+      # 容器时区
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        # 等待 MySQL 健康检查通过后才启动后端服务（避免连接失败）
+        condition: service_healthy
+    restart: on-failure:5
+    healthcheck:
+      # 通过 Actuator 健康端点检查后端服务状态
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # 等待 Spring Boot 启动完成（含数据初始化）
+
+# ==============================================================
+# 持久化数据卷
+# ==============================================================
+volumes:
+  # MySQL 数据持久化卷
+  mysql_data:
+    driver: local

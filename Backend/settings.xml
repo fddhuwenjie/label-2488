@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
+          https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+  <!--
+    Maven 全局镜像配置（供 Docker 构建阶段使用）
+    将所有仓库请求（central、jcenter、spring 等）统一代理到阿里云，大幅加速依赖下载。
+    此文件在 Dockerfile 中被 COPY 到 /root/.m2/settings.xml
+  -->
+  <mirrors>
+
+    <!-- 阿里云公共镜像：覆盖 central + jcenter，优先级最高 -->
+    <mirror>
+      <id>aliyun-public</id>
+      <mirrorOf>*</mirrorOf>
+      <name>Aliyun Public Repository</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+    </mirror>
+
+  </mirrors>
+
+  <profiles>
+    <profile>
+      <id>aliyun</id>
+      <repositories>
+        <repository>
+          <id>aliyun-central</id>
+          <url>https://maven.aliyun.com/repository/central</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
+          <id>aliyun-spring</id>
+          <url>https://maven.aliyun.com/repository/spring</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>aliyun-plugin</id>
+          <url>https://maven.aliyun.com/repository/public</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>aliyun</activeProfile>
+  </activeProfiles>
+
+</settings>

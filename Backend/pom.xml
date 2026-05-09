@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Spring Boot Parent：统一管理依赖版本，简化配置 -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.3</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.library</groupId>
+    <artifactId>campus-library</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>campus-library</name>
+    <description>校园图书借阅管理系统 - Campus Library Book Borrowing Management System</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <!-- Lombok：与 spring-boot-parent BOM 管理的版本保持一致（Spring Boot 3.2.x → 1.18.30）
+             annotationProcessorPaths 不继承 dependencyManagement，必须在此显式声明 -->
+        <lombok.version>1.18.30</lombok.version>
+        <!-- JJWT：JWT令牌生成与解析 -->
+        <jjwt.version>0.11.5</jjwt.version>
+        <!-- MyBatis Spring Boot Starter 3.x 适配 Spring Boot 3.x -->
+        <mybatis-spring-boot.version>3.0.3</mybatis-spring-boot.version>
+        <!-- PageHelper：Spring Boot 3.x 需要 2.x 版本 -->
+        <pagehelper.version>2.1.0</pagehelper.version>
+    </properties>
+
+    <dependencies>
+        <!-- ===== 核心框架 ===== -->
+
+        <!-- Spring MVC：Web层，提供RESTful API支持 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Security：认证与授权框架 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Bean Validation：请求参数合法性校验（@NotBlank, @Size 等） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Actuator：监控端点，用于 Docker 健康检查 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- ===== 数据层 ===== -->
+
+        <!-- MyBatis Spring Boot Starter：ORM框架，实现CRUD/延迟加载/缓存优化 -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>${mybatis-spring-boot.version}</version>
+        </dependency>
+
+        <!-- PageHelper：MyBatis 物理分页插件，简化分页查询 -->
+        <dependency>
+            <groupId>com.github.pagehelper</groupId>
+            <artifactId>pagehelper-spring-boot-starter</artifactId>
+            <version>${pagehelper.version}</version>
+        </dependency>
+
+        <!-- MySQL 驱动（运行时依赖，Docker/生产环境使用） -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- H2 内存数据库（本地开发默认使用，无需安装 MySQL） -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ===== JWT 令牌（无状态认证） ===== -->
+
+        <!-- JJWT API：JWT 操作接口 -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <!-- JJWT 实现（运行时） -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- JJWT Jackson 序列化支持（运行时） -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ===== 开发辅助 ===== -->
+
+        <!-- Lombok：减少 getter/setter/构造函数样板代码 -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ===== 测试依赖 ===== -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- 阿里云 Maven 镜像仓库（国内构建加速，替代 Maven Central） -->
+    <repositories>
+        <repository>
+            <id>aliyun-central</id>
+            <name>Aliyun Maven Central Mirror</name>
+            <url>https://maven.aliyun.com/repository/central</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
+            <id>aliyun-public</id>
+            <name>Aliyun Public Mirror</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
+            <id>aliyun-spring</id>
+            <name>Aliyun Spring Mirror</name>
+            <url>https://maven.aliyun.com/repository/spring</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+
+    <!-- 插件仓库同样走阿里云镜像 -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>aliyun-plugin</id>
+            <name>Aliyun Plugin Mirror</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven Plugin：将项目打包为可执行 JAR -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- 排除 Lombok，避免打入运行时 JAR -->
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+                <!-- 在 package 生命周期阶段重新打包为可执行 JAR -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Compiler Plugin：指定 Java 17 编译目标 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <encoding>UTF-8</encoding>
+                    <!-- Lombok 注解处理器路径（必须显式指定版本，annotationProcessorPaths 不继承 dependencyManagement） -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Surefire Plugin：控制单元测试执行 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- 使用 ${skipTests} 属性引用，确保命令行 -DskipTests 可以正确覆盖此值 -->
+                    <skipTests>${skipTests}</skipTests>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Resources Plugin：指定资源文件编码 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Checkstyle：静态代码规范检查，用于度量注释覆盖率等指标
+                 执行：mvn checkstyle:checkstyle  → 报告输出至 target/site/checkstyle.html
+                 绑定 verify 阶段，CI 中 mvn verify 时自动触发 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <!-- 使用 Sun 编码规范（含 Javadoc 注释要求） -->
+                    <configLocation>sun_checks.xml</configLocation>
+                    <encoding>UTF-8</encoding>
+                    <!-- 生成 HTML 报告 -->
+                    <outputFileFormat>xml</outputFileFormat>
+                    <!-- 检查失败时仅警告，不中断构建 -->
+                    <failsOnError>false</failsOnError>
+                    <violationSeverity>warning</violationSeverity>
+                    <!-- 排除自动生成代码 -->
+                    <excludes>**/generated/**</excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>checkstyle-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>checkstyle</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <reporting>
+        <plugins>
+            <!-- Checkstyle 报告集成到 mvn site，生成 target/site/checkstyle.html -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <configLocation>sun_checks.xml</configLocation>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+        </plugins>
+    </reporting>
+</project>

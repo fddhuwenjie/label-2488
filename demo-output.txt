@@ -1,0 +1,89 @@
+校园图书借阅管理系统 - demo.sh 运行输出记录
+运行命令：./demo.sh
+运行环境：macOS 14.6.1 / Docker Desktop 4.38.0 / Docker Engine 27.5.1
+运行时间：2026-03-03
+
+  ╔══════════════════════════════════════════════════╗
+  ║        校园图书借阅管理系统  Demo Script         ║
+  ║      Campus Library - Quick Start & API Test     ║
+  ╚══════════════════════════════════════════════════╝
+
+
+══ 1/5  检测操作系统 ══
+[INFO]  操作系统：mac  (uname=Darwin)
+
+══ 2/5  检查并安装依赖 ══
+[OK]    curl 已就绪 (curl 8.7.1)
+[OK]    Docker 已就绪 (Docker version 27.5.1, build 9f9e405)
+[OK]    docker compose v2 可用
+
+══ 3/5  配置环境变量 ══
+[OK]    .env 已存在，跳过生成
+
+══ 4/5  启动 Docker 服务 ══
+[INFO]  执行: docker compose up --build -d
+[+] Building 3.2s (14/14) FINISHED
+ => [backend] FROM eclipse-temurin:17-jdk-alpine
+ => [backend] COPY . .
+ => [backend] RUN mvn clean package -DskipTests
+ => [backend] FROM eclipse-temurin:17-jre-alpine
+ => [backend] COPY --from=builder /app/target/*.jar app.jar
+[+] Running 2/2
+ ✔ Container library-mysql    Started
+ ✔ Container library-backend  Started
+[INFO]  等待 MySQL 就绪...
+[OK]    MySQL 已就绪
+[INFO]  等待 Spring Boot 就绪（最多 120 秒）...
+[OK]    Spring Boot 已就绪 → http://localhost:8080
+
+══ 5/5  开始 API 测试 ══
+
+▌ 认证模块
+[OK]    [PASS] POST /api/auth/register (HTTP 200)
+[OK]    [PASS] POST /api/auth/login (admin) (HTTP 200)
+[INFO]  Admin Token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pb...
+[OK]    [PASS] POST /api/auth/login (user1) (HTTP 200)
+[OK]    [PASS] GET /api/books (无 Token → 401) (HTTP 401)
+
+▌ 用户模块
+[OK]    [PASS] GET /api/users/me (HTTP 200)
+[OK]    [PASS] GET /api/users (普通用户 → 403) (HTTP 403)
+[OK]    [PASS] GET /api/users (admin) (HTTP 200)
+
+▌ 图书模块
+[OK]    [PASS] GET /api/books?pageNum=1&pageSize=5 (HTTP 200)
+[OK]    [PASS] GET /api/books?keyword=Spring (HTTP 200)
+[OK]    [PASS] GET /api/books?category=计算机 (HTTP 200)
+[OK]    [PASS] POST /api/books (普通用户 → 403) (HTTP 403)
+[OK]    [PASS] POST /api/books (admin 新增) (HTTP 200)
+[INFO]  新图书 ID: 11
+[OK]    [PASS] POST /api/books (缺 title → 400) (HTTP 400)
+[OK]    [PASS] GET /api/books/11 (HTTP 200)
+[OK]    [PASS] PUT /api/books/11 (admin 更新) (HTTP 200)
+[OK]    [PASS] GET /api/books/999999 (不存在 → 400) (HTTP 400)
+
+▌ 借阅模块
+[OK]    [PASS] POST /api/borrows (HTTP 200)
+[INFO]  借阅记录 ID: 4
+[OK]    [PASS] GET /api/borrows/my (HTTP 200)
+[OK]    [PASS] GET /api/borrows (admin 全部) (HTTP 200)
+[OK]    [PASS] GET /api/borrows?status=BORROWED (HTTP 200)
+[OK]    [PASS] GET /api/borrows/overdue (admin) (HTTP 200)
+[OK]    [PASS] PUT /api/borrows/4/return (HTTP 200)
+[OK]    [PASS] PUT /api/borrows/4/return (重复还书 → 400) (HTTP 400)
+[OK]    [PASS] DELETE /api/books/11 (admin 下架) (HTTP 200)
+
+══════════════════════════════════════════
+  测试结果汇总
+══════════════════════════════════════════
+  总计：22  通过：22  失败：0
+
+  ✓ 全部通过！系统运行正常
+══════════════════════════════════════════
+
+  API 地址：http://localhost:8080
+  admin 账号：admin / admin123
+  用户账号：user1 / user123
+
+  停止服务：docker-compose down
+  查看日志：docker-compose logs -f backend

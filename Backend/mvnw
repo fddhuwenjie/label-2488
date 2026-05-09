@@ -1,0 +1,158 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Apache Maven Wrapper startup batch script, version 3.3.1
+#
+# Optional ENV vars:
+# ------------------
+#   JAVA_HOME - location of a JDK home dir, required when JAVA is not on PATH
+#   MVNW_REPOURL - repo to use for downloading wrapper jar (default: https://repo.maven.apache.org/maven2)
+#   MVNW_USERNAME / MVNW_PASSWORD - credentials for downloading wrapper
+#   MVNW_VERBOSE - true: output additional info on wrapper execution
+# ----------------------------------------------------------------------------
+
+set -euf
+[ "${MVNW_VERBOSE-}" != true ] || set -x
+
+# OS specific support.
+native_path() { printf %s\\n "$1"; }
+case "$(uname)" in
+CYGWIN* | MINGW*)
+  [ -z "${JAVA_HOME-}" ] || JAVA_HOME="$(cygpath --unix "$JAVA_HOME")"
+  native_path() { cygpath --path --windows "$1"; }
+  ;;
+esac
+
+# set JAVACMD and JAVACMD_W
+set_java_home() {
+  # For Cygwin and MinGW, ensure paths are in Unix format before anything is touched
+  if [ -n "${JAVA_HOME-}" ]; then
+    if [ -x "$JAVA_HOME/jre/sh/java" ]; then
+      # IBM's JDK on AIX uses strange locations for the executables
+      JAVACMD="$JAVA_HOME/jre/sh/java"
+    else
+      JAVACMD="$JAVA_HOME/bin/java"
+    fi
+    if [ ! -x "${JAVACMD}" ]; then
+      echo "ERROR: JAVA_HOME is set to an invalid directory: ${JAVA_HOME}
+
+Please set the JAVA_HOME variable in your environment to match the
+location of your Java installation." >&2
+      exit 1
+    fi
+  else
+    JAVACMD="$(
+      'set' +e
+      'unset' -f command 2>/dev/null
+      'command' -v java
+    )" || :
+    if [ -z "${JAVACMD-}" ]; then
+      echo "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+
+Please set the JAVA_HOME variable in your environment to match the
+location of your Java installation." >&2
+      exit 1
+    fi
+  fi
+}
+
+# Download Maven wrapper jar if not present
+download_wrapper() {
+  if [ -r "$MAVEN_PROJECTBASEDIR/.mvn/wrapper/maven-wrapper.jar" ]; then
+    return
+  fi
+
+  wrapperUrl="$(grep -m1 'wrapperUrl' "$MAVEN_PROJECTBASEDIR/.mvn/wrapper/maven-wrapper.properties" | cut -d= -f2-)"
+  while IFS="=" read -r key value; do
+    # Add newline if there is one, as read strips it
+    case "$key" in
+      wrapperUrl) wrapperUrl="$value" ;;
+    esac
+  done <"$MAVEN_PROJECTBASEDIR/.mvn/wrapper/maven-wrapper.properties"
+  [ "${MVNW_VERBOSE-}" != true ] || echo "Downloading from: $wrapperUrl"
+
+  wrapperJarPath="$MAVEN_PROJECTBASEDIR/.mvn/wrapper/maven-wrapper.jar"
+  if $__curl -fsS -o "$wrapperJarPath" "$wrapperUrl" 2>&1 || \
+     $__wget --quiet -O "$wrapperJarPath" "$wrapperUrl" 2>&1; then
+    # Validate download
+    if [ -r "$wrapperJarPath" ]; then
+      [ "${MVNW_VERBOSE-}" != true ] || echo "Finished downloading wrapper jar"
+      return
+    fi
+  fi
+
+  echo "ERROR: Couldn't download maven-wrapper.jar from '$wrapperUrl'" >&2
+  exit 1
+}
+
+# =========================================================================================
+
+MAVEN_PROJECTBASEDIR="${MAVEN_BASEDIR:-}"
+if [ -z "${MAVEN_PROJECTBASEDIR}" ]; then
+  MAVEN_PROJECTBASEDIR="$(pwd)"
+  while : ; do
+    if [ -d "$MAVEN_PROJECTBASEDIR/.mvn" ]; then break; fi
+    parent="$(dirname "$MAVEN_PROJECTBASEDIR")"
+    if [ "$parent" = "$MAVEN_PROJECTBASEDIR" ]; then break; fi
+    MAVEN_PROJECTBASEDIR="$parent"
+  done
+fi
+[ "${MVNW_VERBOSE-}" != true ] || echo "Project base directory: $MAVEN_PROJECTBASEDIR"
+
+exec_maven() {
+  unset MVNW_VERBOSE MVNW_USERNAME MVNW_PASSWORD
+  exec "$JAVACMD" \
+    ${JVM_CONFIG_MAVEN_PROPS} \
+    "${MAVEN_OPTS-}" \
+    ${MAVEN_DEBUG_OPTS-} \
+    -classpath "$MAVEN_PROJECTBASEDIR/.mvn/wrapper/maven-wrapper.jar" \
+    "-Dmaven.multiModuleProjectDirectory=${MAVEN_PROJECTBASEDIR}" \
+    ${WRAPPER_LAUNCHER} "$@"
+}
+
+set_java_home
+
+# check curl / wget availability
+if command -v curl >/dev/null 2>&1; then
+  __curl=curl
+elif command -v wget >/dev/null 2>&1; then
+  __curl=false
+  __wget=wget
+else
+  # if neither curl nor wget is available, the wrapper jar must already exist
+  if [ ! -r "$MAVEN_PROJECTBASEDIR/.mvn/wrapper/maven-wrapper.jar" ]; then
+    echo "ERROR: curl or wget is required to download Maven wrapper. Please install one." >&2
+    exit 1
+  fi
+fi
+
+download_wrapper
+
+MAVEN_OPTS="${MAVEN_OPTS-} -Dmaven.multiModuleProjectDirectory=${MAVEN_PROJECTBASEDIR}"
+
+WRAPPER_LAUNCHER=org.apache.maven.wrapper.MavenWrapperMain
+
+JVM_CONFIG_MAVEN_PROPS=
+if [ -r "${MAVEN_PROJECTBASEDIR}/.mvn/jvm.config" ]; then
+  JVM_CONFIG_MAVEN_PROPS="$(cat "${MAVEN_PROJECTBASEDIR}/.mvn/jvm.config")"
+fi
+
+exec_maven "$@"

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.library.mapper.UserMapper">
+
+    <!--
+        MyBatis 二级缓存配置（Mapper 级别缓存）
+        - eviction="LRU"：最近最少使用淘汰策略
+        - flushInterval="60000"：每 60 秒刷新一次缓存
+        - size="512"：最多缓存 512 个查询结果对象
+        - readOnly="true"：只读模式，性能更高（多线程不修改缓存对象时使用）
+    -->
+    <cache eviction="LRU" flushInterval="60000" size="512" readOnly="false"/>
+
+    <!-- 基础 ResultMap：数据库列名（下划线）映射到 Java 属性（驼峰） -->
+    <resultMap id="BaseResultMap" type="com.library.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="email" property="email"/>
+        <result column="phone" property="phone"/>
+        <result column="role" property="role"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 可复用的查询字段片段，避免 SELECT * 带来的隐患 -->
+    <sql id="BaseColumns">
+        id, username, password, email, phone, role, status, created_at, updated_at
+    </sql>
+
+    <!-- 根据用户名精确查询（Spring Security 认证时调用） -->
+    <select id="findByUsername" resultMap="BaseResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM users
+        WHERE username = #{username}
+        LIMIT 1
+    </select>
+
+    <!-- 根据主键查询（延迟加载时由 BorrowMapper 调用） -->
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        查询用户列表，支持关键字模糊搜索
+        使用 MyBatis <where> 和 <if> 实现动态 SQL，避免 WHERE 1=1 的写法
+    -->
+    <select id="findAll" resultMap="BaseResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM users
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (username LIKE CONCAT('%', #{keyword}, '%')
+                OR email LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 新增用户，useGeneratedKeys 使自增主键回填到 user.id -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (username, password, email, phone, role, status, created_at, updated_at)
+        VALUES (#{username}, #{password}, #{email}, #{phone}, #{role}, #{status}, NOW(), NOW())
+    </insert>
+
+    <!--
+        动态更新用户信息，使用 <set> 标签自动处理尾随逗号
+        只有非 null 的字段才会被更新，实现局部更新
+    -->
+    <update id="update">
+        UPDATE users
+        <set>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="role != null">role = #{role},</if>
+            <if test="status != null">status = #{status},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 物理删除用户 -->
+    <delete id="deleteById">
+        DELETE FROM users WHERE id = #{id}
+    </delete>
+
+    <!-- 检查用户名是否已存在（COUNT > 0 映射为 true） -->
+    <select id="existsByUsername" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM users WHERE username = #{username}
+    </select>
+
+    <!-- 检查邮箱是否已存在 -->
+    <select id="existsByEmail" resultType="boolean">
+        SELECT COUNT(1) > 0 FROM users WHERE email = #{email}
+    </select>
+
+</mapper>

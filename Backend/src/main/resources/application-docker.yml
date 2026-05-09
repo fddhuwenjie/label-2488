@@ -1,0 +1,60 @@
+# ==============================================================
+# Docker 环境配置（通过 SPRING_PROFILES_ACTIVE=docker 激活）
+# 覆盖 application.yml 中的 H2 数据库配置，改用 MySQL
+# ==============================================================
+
+spring:
+  # ===== MySQL 数据源配置 =====
+  datasource:
+    # 支持通过环境变量注入，方便不同环境复用镜像
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://mysql:3306/librarydb?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&allowPublicKeyRetrieval=true}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${SPRING_DATASOURCE_USERNAME:library}
+    password: ${SPRING_DATASOURCE_PASSWORD:library123}
+    # HikariCP 连接池配置（Spring Boot 默认连接池）
+    hikari:
+      # 获取连接的最大等待时间（30秒），超时抛出异常
+      connection-timeout: 30000
+      # 最大连接池大小（生产环境根据并发量调整）
+      maximum-pool-size: 10
+      # 最小空闲连接数（保持至少 5 个连接以快速响应请求）
+      minimum-idle: 5
+      # 空闲连接最大存活时间（10 分钟）
+      idle-timeout: 600000
+      # 连接最大生命周期（30 分钟，小于 MySQL 的 wait_timeout）
+      max-lifetime: 1800000
+
+  # 禁用 H2 控制台（Docker 环境不使用 H2）
+  h2:
+    console:
+      enabled: false
+
+  # 禁用 Spring 的 SQL 初始化（MySQL 表结构由 mysql-init.sql 在容器启动时创建）
+  sql:
+    init:
+      mode: never
+
+# ===== JWT 配置（Docker 环境）=====
+# 优先使用环境变量 JWT_SECRET 注入的值；未设置时使用内置默认密钥（仅供本地开发/演示）
+# 生产环境务必通过 .env 或 CI/CD Secret 覆盖为强随机密钥
+jwt:
+  secret: ${JWT_SECRET:Y2FtcHVzTGlicmFyeVNlY3JldEtleUZvckpXVEF1dGhlbnRpY2F0aW9uMjAyNQ==}
+  expiration: ${JWT_EXPIRATION:28800000}
+
+# ===== CORS 跨域配置（Docker 环境）=====
+# 优先使用环境变量 CORS_ALLOWED_ORIGINS；未设置时允许常见本地开发端口
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:8080}
+
+# ===== 生产环境日志级别（降低输出量）=====
+logging:
+  level:
+    com.library: INFO
+    org.springframework.security: WARN
+    org.mybatis: WARN
+
+# ===== MyBatis 生产环境配置（关闭 SQL 控制台输出）=====
+mybatis:
+  configuration:
+    # 生产环境使用 Slf4j 日志，避免 stdout 输出大量 SQL
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
