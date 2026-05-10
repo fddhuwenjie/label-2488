@@ -24,7 +24,7 @@
         <java.version>17</java.version>
         <!-- Lombok：与 spring-boot-parent BOM 管理的版本保持一致（Spring Boot 3.2.x → 1.18.30）
              annotationProcessorPaths 不继承 dependencyManagement，必须在此显式声明 -->
-        <lombok.version>1.18.30</lombok.version>
+        <lombok.version>1.18.38</lombok.version>
         <!-- JJWT：JWT令牌生成与解析 -->
         <jjwt.version>0.11.5</jjwt.version>
         <!-- MyBatis Spring Boot Starter 3.x 适配 Spring Boot 3.x -->
